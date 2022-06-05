@@ -40,4 +40,4 @@ CartKerns = compute_kernels.CartKerns(z, n, n_, k_grid, kmin, kmax, absq_range, 
 QXX = np.arange(16) ; QYY = np.arange(-15,16)
 QXY = [[i,j] for idx1,i in enumerate(QXX) for idx2,j in enumerate(QYY)]
 
-flow_kern = CartKerns.compute_kernels(QXY[0])
+flow_kern, Lorentz_kern = CartKerns.compute_kernels(QXY[0])

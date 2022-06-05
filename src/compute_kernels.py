@@ -1,5 +1,8 @@
 import numpy as np
 import scipy
+import sys
+
+import Lorentz_kernels as make_Lorentz_kerns
 
 class CartKerns:
     def __init__(self, z, n, n_, k_grid, kmin, kmax,
@@ -43,13 +46,15 @@ class CartKerns:
         self.raw_k_ = eig_['eig_k']
 
         # gradients needed
-        self.raw_dzH, self.raw_dzV, self.raw_dzH_, self.raw_dzV_,\
-        self.dzrho, self.dzfj = self.grad_z()
+        self.raw_dzH, self.raw_dzV, self.raw_dzH_, self.raw_dzV_, self.dzrho,\
+        self.dzfj, self.raw_d2zH, self.raw_d2zV, self.raw_d2zH_, self.raw_d2zV_ =\
+                                                                    self.grad_z()
 
         # the miscellaneous interpolation functions needed
         self.ITP_H, self.ITP_V, self.ITP_H_,\
         self.ITP_V_, self.ITP_dzH, self.ITP_dzV,\
-        self.ITP_dzH_, self.ITP_dzV_ = self.interpolate_eigs()        
+        self.ITP_dzH_, self.ITP_dzV_, self.TP_d2zH,\
+        self.ITP_d2zV, self.ITP_d2zH_, self.ITP_d2zV_ = self.interpolate_eigs()        
         
     def grad_z(self):
         # get the derivatives                                                                
@@ -60,7 +65,12 @@ class CartKerns:
         dzrho = np.gradient(self.rho, self.z)
         dzfj = np.gradient(self.fj, self.z, axis=1)
         
-        return dzH, dzV, dzH_, dzV_, dzrho, dzfj
+        d2zH = np.gradient(dzH, self.z, axis=1)
+        d2zV = np.gradient(dzV, self.z, axis=1)
+        d2zH_ = np.gradient(dzH_, self.z, axis=1)
+        d2zV_ = np.gradient(dzV_, self.z, axis=1)
+        
+        return dzH, dzV, dzH_, dzV_, dzrho, dzfj, d2zH, d2zV, d2zH_, d2zV_
 
     def interpolate_eigs(self):
         # interpolate because the quantities in the eigenfunction
@@ -92,8 +102,23 @@ class CartKerns:
         ITP_dzV_   = scipy.interpolate.interp2d(self.raw_k_, self.z, self.raw_dzV_.T,
                                                 kind='linear',
                                                 bounds_error=False,fill_value=np.nan)
+        
+        ITP_d2zH   = scipy.interpolate.interp2d(self.raw_k, self.z, self.raw_d2zH.T,
+                                               kind='linear',
+                                               bounds_error=False,fill_value=np.nan)
+        ITP_d2zV   = scipy.interpolate.interp2d(self.raw_k, self.z, self.raw_d2zV.T,
+                                               kind='linear',
+                                               bounds_error=False,fill_value=np.nan)
 
-        return ITP_H, ITP_V, ITP_H_, ITP_V_, ITP_dzH, ITP_dzV, ITP_dzH_, ITP_dzV_
+        ITP_d2zH_   = scipy.interpolate.interp2d(self.raw_k_, self.z, self.raw_d2zH_.T,
+                                                kind='linear',
+                                                bounds_error=False,fill_value=np.nan)
+        ITP_d2zV_   = scipy.interpolate.interp2d(self.raw_k_, self.z, self.raw_d2zV_.T,
+                                                kind='linear',
+                                                bounds_error=False,fill_value=np.nan)
+
+        return (ITP_H, ITP_V, ITP_H_, ITP_V_, ITP_dzH, ITP_dzV, ITP_dzH_, ITP_dzV_,\
+                ITP_d2zH, ITP_d2zV, ITP_d2zH_, ITP_d2zV_)
         
     
     # getting all the kernels for a certain q
@@ -102,7 +127,33 @@ class CartKerns:
         qx_ind = q_vec_ind[0]
         qy_ind = q_vec_ind[1] 
                 
-        Poloidal_kernel = np.zeros((self.nmodes, self.fj.shape[0]))
+        Poloidal_kern = np.zeros((self.nmodes, self.fj.shape[0]), dtype='float32')
+        
+        Lorentz_kern = {}
+        Lorentz_kern['Kxx'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                            dtype='float32')
+        Lorentz_kern['Kyy'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                            dtype='float32')
+        Lorentz_kern['Kzz'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                            dtype='float32')
+        Lorentz_kern['Kzk'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                            dtype='float32')
+        Lorentz_kern['Kzk_'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                             dtype='float32')
+        Lorentz_kern['Kkz'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                            dtype='float32')
+        Lorentz_kern['Kk_z'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                             dtype='float32')
+        Lorentz_kern['Kkk'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                            dtype='float32')
+        Lorentz_kern['Kk_k_'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                              dtype='float32')
+        Lorentz_kern['Kkk_'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                             dtype='float32')
+        Lorentz_kern['Kk_k'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
+                                             dtype='float32')
+        
+        Lorentz_kern = np.zeros((self.nmodes, self.fj.shape[0]), dtype='float32')
         
         for idx, (kxi, kyi) in enumerate(zip(self.kx_ind, self.ky_ind)):
             # k vector, k unit vector, k norm
@@ -145,6 +196,8 @@ class CartKerns:
             kern_dict['V_k']  = self.ITP_V(abs_k, self.z).squeeze()
             kern_dict['dzH_k'] = self.ITP_dzH(abs_k, self.z).squeeze()
             kern_dict['dzV_k'] = self.ITP_dzV(abs_k, self.z).squeeze()
+            kern_dict['d2zH_k'] = self.ITP_d2zH(abs_k, self.z).squeeze()
+            kern_dict['d2zV_k'] = self.ITP_d2zV(abs_k, self.z).squeeze()
                                     
             # constructing the interpolated eigenfunctions for k'
             # these are real so conj is just for safety purposes if using complex efn later
@@ -152,6 +205,8 @@ class CartKerns:
             kern_dict['V_k_']  = np.conj(self.ITP_V_(abs_kp, self.z).squeeze())
             kern_dict['dzH_k_'] = np.conj(self.ITP_dzH_(abs_kp, self.z).squeeze())
             kern_dict['dzV_k_'] = np.conj(self.ITP_dzV_(abs_kp, self.z).squeeze())
+            kern_dict['d2zH_k_'] = np.conj(self.ITP_d2zH_(abs_kp, self.z).squeeze())
+            kern_dict['d2zV_k_'] = np.conj(self.ITP_d2zV_(abs_kp, self.z).squeeze())
 
             # other miscellaneous things needed
             kern_dict['abs_k'] = abs_k
@@ -167,13 +222,30 @@ class CartKerns:
             # WHY SHOULD THIS BE NEEDED IF THE INTERPOLATION WORKS FINE
             # If there is an interpolation error in the eigenfunctions, continue
             if np.sum(np.isnan([kern_dict['H_k_'], kern_dict['V_k_'],\
-                                kern_dict['dzH_k_'], kern_dict['dzV_k_']])) != 0:
+                                kern_dict['dzH_k_'], kern_dict['dzV_k_'],\
+                                kern_dict['d2zH_k_'], kern_dict['d2zV_k_']])) != 0:
                 continue
                         
             # the poloidal flow kernel
-            Poloidal_kernel[idx] = self.flow_kern(kern_dict)       
+            Poloidal_kern[idx] = self.flow_kern(kern_dict)       
             
-        return Poloidal_kernel.astype(np.float32)
+            # the Lorentz-stress kernels
+            Kxx, Kyy, Kzz, Kzk, Kzk_, Kkz, Kk_z, Kkk, Kk_k_, Kkk_, Kk_k =\
+                                    make_Lorentz_kerns.computeKerns(kern_dict)
+            
+            Lorentz_kern['Kxx'][idx] = Kxx
+            Lorentz_kern['Kyy'][idx] = Kyy
+            Lorentz_kern['Kzz'][idx] = Kzz
+            Lorentz_kern['Kzk'][idx] = Kzk
+            Lorentz_kern['Kzk_'][idx] = Kzk_
+            Lorentz_kern['Kkz'][idx] = Kkz
+            Lorentz_kern['Kk_z'][idx] = Kk_z
+            Lorentz_kern['Kkk'][idx] = Kkk
+            Lorentz_kern['Kk_k_'][idx] = Kk_k_
+            Lorentz_kern['Kkk_'][idx] = Kkk_
+            Lorentz_kern['Kk_k'][idx] = Kk_k
+            
+        return Poloidal_kern, Lorentz_kern
         
     
     def flow_kern(self, kern_dict):        
