@@ -138,20 +138,27 @@ class CartKerns:
                 continue
                 
             # dictionary of eig funcs
-            eig_dict = {}
+            kern_dict = {}
             
             # constructing the interpolated eigenfunctions for k
-            eig_dict['H_k']  = self.ITP_H(abs_k, self.z).squeeze()
-            eig_dict['V_k']  = self.ITP_V(abs_k, self.z).squeeze()
-            eig_dict['dzH_k'] = self.ITP_dzH(abs_k, self.z).squeeze()
-            eig_dict['dzV_k'] = self.ITP_dzV(abs_k, self.z).squeeze()
+            kern_dict['H_k']  = self.ITP_H(abs_k, self.z).squeeze()
+            kern_dict['V_k']  = self.ITP_V(abs_k, self.z).squeeze()
+            kern_dict['dzH_k'] = self.ITP_dzH(abs_k, self.z).squeeze()
+            kern_dict['dzV_k'] = self.ITP_dzV(abs_k, self.z).squeeze()
                                     
             # constructing the interpolated eigenfunctions for k'
-            eig_dict['H__k']  = self.ITP_H_(abs_kp, self.z).squeeze()
-            eig_dict['V__k']  = self.ITP_V_(abs_kp, self.z).squeeze()
-            eig_dict['dzH__k'] = self.ITP_dzH_(abs_kp, self.z).squeeze()
-            eig_dict['dzV__k'] = self.ITP_dzV_(abs_kp, self.z).squeeze()
+            # these are real so conj is just for safety purposes if using complex efn later
+            kern_dict['H_k_']  = np.conj(self.ITP_H_(abs_kp, self.z).squeeze())
+            kern_dict['V_k_']  = np.conj(self.ITP_V_(abs_kp, self.z).squeeze())
+            kern_dict['dzH_k_'] = np.conj(self.ITP_dzH_(abs_kp, self.z).squeeze())
+            kern_dict['dzV_k_'] = np.conj(self.ITP_dzV_(abs_kp, self.z).squeeze())
 
+            # other miscellaneous things needed
+            kern_dict['abs_k'] = abs_k
+            kern_dict['abs_k_'] = abs_kp
+            kern_dict['abs_q'] = abs_q
+            kern_dict['khdotk_h'] = np.dot(k_hat,kp_hat)
+            kern_dict['kdotq'] = np.dot(k_vec,q_vec)
 
             # THIS CONDITION IS WRONG I THINK
             if np.sum(np.isnan(kp_hat)):
@@ -159,35 +166,39 @@ class CartKerns:
                             
             # WHY SHOULD THIS BE NEEDED IF THE INTERPOLATION WORKS FINE
             # If there is an interpolation error in the eigenfunctions, continue
-            if np.sum(np.isnan([eig_dict['H__k'], eig_dict['V__k'],\
-                                eig_dict['dzH__k'], eig_dict['dzV__k']])) != 0:
+            if np.sum(np.isnan([kern_dict['H_k_'], kern_dict['V_k_'],\
+                                kern_dict['dzH_k_'], kern_dict['dzV_k_']])) != 0:
                 continue
-                
-
-            # getting the poloidal flow kernel
-            cos_khk_h = np.dot(k_hat,kp_hat)
-            cos_kq = np.dot(k_vec,q_vec)
-        
+                        
             # the poloidal flow kernel
-            Poloidal_kernel[idx] = self.flow_kern(cos_khk_h, cos_kq, abs_q, eig_dict)       
+            Poloidal_kernel[idx] = self.flow_kern(kern_dict)       
             
         return Poloidal_kernel.astype(np.float32)
         
     
-    def flow_kern(self, cos_khk_h, cos_kq, abs_q, eig_dict):        
+    def flow_kern(self, kern_dict):        
         '''Returns the poloidal component of flow kernels.
         '''
         
         scale_height = -self.rho / self.dzrho
-        term1 = (abs_q**2 * self.fj) * (cos_khk_h * eig_dict['dzH_k'] *\
-                                        np.conj(eig_dict['H__k']) +\
-                                        eig_dict['dzV_k'] * np.conj(eig_dict['V__k']))
-        term2 = -1. * cos_kq * (self.dzfj - self.fj/scale_height) *\
-                (cos_khk_h * eig_dict['H_k'] * np.conj(eig_dict['H__k']) +\
-                 eig_dict['V_k'] * np.conj(eig_dict['V__k']))
+        term1 = (kern_dict['abs_q']**2 * self.fj) *\
+                (kern_dict['khdotk_h'] * kern_dict['dzH_k'] *\
+                 kern_dict['H_k_'] +\
+                 kern_dict['dzV_k'] * kern_dict['V_k_'])
+        term2 = -1. * kern_dict['kdotq'] * (self.dzfj - self.fj/scale_height) *\
+                (kern_dict['khdotk_h'] * kern_dict['H_k'] * kern_dict['H_k_'] +\
+                 kern_dict['V_k'] * kern_dict['V_k_'])
         
         # compute integrand for P matrix                                                   
         integrand_P = -(term1 + term2)
         
-        LZ = 1./abs_q if abs_q != 0 else 1
+        LZ = 1./kern_dict['abs_q'] if kern_dict['abs_q'] != 0 else 1
         return (np.trapz(integrand_P * self.rho[None, :], self.z, axis=1)) * LZ**2
+
+    
+    def Lorentz_kern(self, kern_dict):
+        '''Calculates the different components of the Lorentz-stress kernels.
+        '''
+        Kxx, Kyy, Kzz, Kzk, Kzk_, Kkz, Kk_z, Kkk, Kk_k_, Kkk_, Kk_k =\
+                                                    LorKern.computeKerns(kern_dict)
+        return Kxx, Kyy, Kzz, Kzk, Kzk_, Kkz, Kk_z, Kkk, Kk_k_, Kkk_, Kk_k
