@@ -32,14 +32,12 @@ kmin, kmax = kRmin/RSUN, kRmax/RSUN
 #.....only want to compute kernels for |q|R <= 300
 absq_range = np.array([0,300])/RSUN
 
-CartKerns = compute_kernels.CartKerns(z, k_grid, kmin, kmax, absq_range)
-
 #.....computing kernels for f-f coupling; i.e., n = n' = 0
-n,npr = 0,0
+n, n_ = 0,0
 
-sys.exit()
+CartKerns = compute_kernels.CartKerns(z, n, n_, k_grid, kmin, kmax, absq_range, fj, rho)
 
 QXX = np.arange(16) ; QYY = np.arange(-15,16)
 QXY = [[i,j] for idx1,i in enumerate(QXX) for idx2,j in enumerate(QYY)]
 
-flow_kern = compute_kernels.compute_kernels(QXY[0])
+flow_kern = CartKerns.compute_kernels(QXY[0])
