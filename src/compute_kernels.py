@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import sys
 
-import Lorentz_kernels as make_Lorentz_kerns
+from . import Lorentz_kernels as make_Lorentz_kerns
 
 class CartKerns:
     def __init__(self, z, n, n_, k_grid, kmin, kmax,
@@ -53,7 +53,7 @@ class CartKerns:
         # the miscellaneous interpolation functions needed
         self.ITP_H, self.ITP_V, self.ITP_H_,\
         self.ITP_V_, self.ITP_dzH, self.ITP_dzV,\
-        self.ITP_dzH_, self.ITP_dzV_, self.TP_d2zH,\
+        self.ITP_dzH_, self.ITP_dzV_, self.ITP_d2zH,\
         self.ITP_d2zV, self.ITP_d2zH_, self.ITP_d2zV_ = self.interpolate_eigs()        
         
     def grad_z(self):
@@ -128,32 +128,30 @@ class CartKerns:
         qy_ind = q_vec_ind[1] 
                 
         Poloidal_kern = np.zeros((self.nmodes, self.fj.shape[0]), dtype='float32')
-        
+        print(self.z.shape, self.nmodes)
         Lorentz_kern = {}
-        Lorentz_kern['Kxx'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                            dtype='float32')
-        Lorentz_kern['Kyy'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                            dtype='float32')
-        Lorentz_kern['Kzz'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                            dtype='float32')
-        Lorentz_kern['Kzk'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                            dtype='float32')
-        Lorentz_kern['Kzk_'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                             dtype='float32')
-        Lorentz_kern['Kkz'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                            dtype='float32')
-        Lorentz_kern['Kk_z'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                             dtype='float32')
-        Lorentz_kern['Kkk'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                            dtype='float32')
-        Lorentz_kern['Kk_k_'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                              dtype='float32')
-        Lorentz_kern['Kkk_'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                             dtype='float32')
-        Lorentz_kern['Kk_k'][idx] = np.zeros((self.nmodes, self.fj.shape[0]),
-                                             dtype='float32')
-        
-        Lorentz_kern = np.zeros((self.nmodes, self.fj.shape[0]), dtype='float32')
+        Lorentz_kern['Kxx'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                        dtype='float32')
+        Lorentz_kern['Kyy'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                        dtype='float32')
+        Lorentz_kern['Kzz'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                        dtype='float32')
+        Lorentz_kern['Kzk'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                        dtype='float32')
+        Lorentz_kern['Kzk_'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                         dtype='float32')
+        Lorentz_kern['Kkz'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                        dtype='float32')
+        Lorentz_kern['Kk_z'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                         dtype='float32')
+        Lorentz_kern['Kkk'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                        dtype='float32')
+        Lorentz_kern['Kk_k_'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                          dtype='float32')
+        Lorentz_kern['Kkk_'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                         dtype='float32')
+        Lorentz_kern['Kk_k'] = np.zeros((self.nmodes, self.z.shape[0]),
+                                         dtype='float32')
         
         for idx, (kxi, kyi) in enumerate(zip(self.kx_ind, self.ky_ind)):
             # k vector, k unit vector, k norm
