@@ -3,6 +3,8 @@ import numpy as np
 def computeKerns(kern_dict):
     Kxx = make_Kxx(kern_dict)
     Kyy = 1. * Kxx
+
+    # return Kxx, Kyy
     
     Kzz = make_Kzz(kern_dict)
     

@@ -128,12 +128,13 @@ class CartKerns:
         qy_ind = q_vec_ind[1] 
                 
         Poloidal_kern = np.zeros((self.nmodes, self.fj.shape[0]), dtype='float32')
-        print(self.z.shape, self.nmodes)
+        
         Lorentz_kern = {}
         Lorentz_kern['Kxx'] = np.zeros((self.nmodes, self.z.shape[0]),
                                         dtype='float32')
         Lorentz_kern['Kyy'] = np.zeros((self.nmodes, self.z.shape[0]),
                                         dtype='float32')
+        
         Lorentz_kern['Kzz'] = np.zeros((self.nmodes, self.z.shape[0]),
                                         dtype='float32')
         Lorentz_kern['Kzk'] = np.zeros((self.nmodes, self.z.shape[0]),
@@ -175,6 +176,8 @@ class CartKerns:
             abs_kp = np.sqrt(kxp**2 + kyp**2)
             kp_hat = kp_vec/abs_kp
         
+
+            if(idx == 0): print(abs_k * 696e6, abs_kp * 696e6)
             # q vector, q unit vector, q norm                                             
             qx = self.kx[kxp_ind] - self.kx[kxi]
             qy = self.ky[kyp_ind] - self.ky[kyi]
@@ -228,20 +231,25 @@ class CartKerns:
             Poloidal_kern[idx] = self.flow_kern(kern_dict)       
             
             # the Lorentz-stress kernels
+            
             Kxx, Kyy, Kzz, Kzk, Kzk_, Kkz, Kk_z, Kkk, Kk_k_, Kkk_, Kk_k =\
                                     make_Lorentz_kerns.computeKerns(kern_dict)
+            '''
+            Kxx, Kyy = make_Lorentz_kerns.computeKerns(kern_dict)
+            '''
+            Lorentz_kern['Kxx'][idx] = Kxx * self.rho
+            Lorentz_kern['Kyy'][idx] = Kyy * self.rho
             
-            Lorentz_kern['Kxx'][idx] = Kxx
-            Lorentz_kern['Kyy'][idx] = Kyy
-            Lorentz_kern['Kzz'][idx] = Kzz
-            Lorentz_kern['Kzk'][idx] = Kzk
-            Lorentz_kern['Kzk_'][idx] = Kzk_
-            Lorentz_kern['Kkz'][idx] = Kkz
-            Lorentz_kern['Kk_z'][idx] = Kk_z
-            Lorentz_kern['Kkk'][idx] = Kkk
-            Lorentz_kern['Kk_k_'][idx] = Kk_k_
-            Lorentz_kern['Kkk_'][idx] = Kkk_
-            Lorentz_kern['Kk_k'][idx] = Kk_k
+            Lorentz_kern['Kzz'][idx] = Kzz * self.rho
+            Lorentz_kern['Kzk'][idx] = Kzk * self.rho
+            Lorentz_kern['Kzk_'][idx] = Kzk_ * self.rho
+            Lorentz_kern['Kkz'][idx] = Kkz * self.rho
+            Lorentz_kern['Kk_z'][idx] = Kk_z * self.rho
+            Lorentz_kern['Kkk'][idx] = Kkk * self.rho
+            Lorentz_kern['Kk_k_'][idx] = Kk_k_ * self.rho
+            Lorentz_kern['Kkk_'][idx] = Kkk_ * self.rho
+            Lorentz_kern['Kk_k'][idx] = Kk_k * self.rho
+            
             
         return Poloidal_kern, Lorentz_kern
         
